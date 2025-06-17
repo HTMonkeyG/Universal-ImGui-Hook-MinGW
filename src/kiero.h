@@ -16,7 +16,7 @@
 #define KIERO_ARCH_X64 0
 #define KIERO_ARCH_X86 0
 
-#if defined(_M_X64)	
+#if defined(_M_X64)  
 # undef  KIERO_ARCH_X64
 # define KIERO_ARCH_X64 1
 #else
@@ -32,47 +32,47 @@ typedef uint32_t uint150_t;
 
 namespace kiero
 {
-	struct Status
-	{
-		enum Enum
-		{
-			UnknownError = -1,
-			NotSupportedError = -2,
-			ModuleNotFoundError = -3,
+  struct Status
+  {
+    enum Enum
+    {
+      UnknownError = -1,
+      NotSupportedError = -2,
+      ModuleNotFoundError = -3,
 
-			AlreadyInitializedError = -4,
-			NotInitializedError = -5,
+      AlreadyInitializedError = -4,
+      NotInitializedError = -5,
 
-			Success = 0,
-		};
-	};
+      Success = 0,
+    };
+  };
 
-	struct RenderType
-	{
-		enum Enum
-		{
-			None,
+  struct RenderType
+  {
+    enum Enum
+    {
+      None,
 
-			D3D9,
-			D3D10,
-			D3D11,
-			D3D12,
+      D3D9,
+      D3D10,
+      D3D11,
+      D3D12,
 
-			OpenGL,
-			Vulkan,
+      OpenGL,
+      Vulkan,
 
-			Auto
-		};
-	};
+      Auto
+    };
+  };
 
-	Status::Enum init(RenderType::Enum renderType);
-	void shutdown();
+  Status::Enum init(RenderType::Enum renderType);
+  void shutdown();
 
-	Status::Enum bind(uint16_t index, void** original, void* function);
-	void unbind(uint16_t index);
+  Status::Enum bind(uint16_t index, void** original, void* function);
+  void unbind(uint16_t index);
 
-	RenderType::Enum getRenderType();
-	uint150_t* getMethodsTable();
+  RenderType::Enum getRenderType();
+  uint150_t* getMethodsTable();
 }
 
 #endif // __KIERO_H__

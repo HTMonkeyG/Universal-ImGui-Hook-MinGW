@@ -3,24 +3,21 @@ extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg
 using namespace ImGui;
 
 namespace inputhook {
-	WNDPROC	oWndProc;
+  WNDPROC  oWndProc;
 
-	void Init(HWND hWindow)
-	{
-		oWndProc = (WNDPROC)SetWindowLongPtr(hWindow, GWLP_WNDPROC, (__int3264)(LONG_PTR)WndProc);
-	}
+    static LRESULT APIENTRY WndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
+    if (menu::isOpen) {
+      ImGui_ImplWin32_WndProcHandler(hwnd, uMsg, wParam, lParam);
+      return true;
+    }
+    return CallWindowProc(oWndProc, hwnd, uMsg, wParam, lParam);
+  }
 
-	void Remove(HWND hWindow)
-	{
-		SetWindowLongPtr(hWindow, GWLP_WNDPROC, (LONG_PTR)oWndProc);
-	}
+  void Init(HWND hWindow) {
+    oWndProc = (WNDPROC)SetWindowLongPtr(hWindow, GWLP_WNDPROC, (__int3264)(LONG_PTR)WndProc);
+  }
 
-	LRESULT APIENTRY WndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
-	{
-		if (menu::isOpen) {
-			ImGui_ImplWin32_WndProcHandler(hwnd, uMsg, wParam, lParam);
-			return true;
-		}
-		return CallWindowProc(oWndProc, hwnd, uMsg, wParam, lParam);
-	}
+  void Remove(HWND hWindow) {
+    SetWindowLongPtr(hWindow, GWLP_WNDPROC, (LONG_PTR)oWndProc);
+  }
 }
