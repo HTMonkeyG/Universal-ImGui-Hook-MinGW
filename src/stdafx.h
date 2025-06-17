@@ -24,5 +24,4 @@ typedef uint32_t uintx_t;
 #include "globals.h"
 #include "kiero.h"
 #include "inputhooks.h"
-#include "hooks.h"
 #include "menu.h"

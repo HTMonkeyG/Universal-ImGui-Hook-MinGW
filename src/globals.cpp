@@ -1,6 +1,6 @@
 #include "stdafx.h"
 
-namespace globals {
+namespace UniHookGlobals {
   HMODULE mainModule;
   HWND mainWindow;
   int uninjectKey = VK_F12;

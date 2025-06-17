@@ -1,5 +1,6 @@
 #pragma once
-namespace inputhook {
-  extern void Init(HWND hWindow);
-  extern void Remove(HWND hWindow);
+
+namespace InputHandler {
+  void Init(HWND hWindow);
+  void Remove(HWND hWindow);
 }

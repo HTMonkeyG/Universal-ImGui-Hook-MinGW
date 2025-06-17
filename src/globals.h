@@ -1,6 +1,6 @@
 #pragma once
 
-namespace globals {
+namespace UniHookGlobals {
   extern HMODULE mainModule;
   extern HWND mainWindow;
   extern int uninjectKey;

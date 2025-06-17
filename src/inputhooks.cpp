@@ -1,11 +1,11 @@
 #include "stdafx.h"
+
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
-using namespace ImGui;
 
-namespace inputhook {
-  WNDPROC  oWndProc;
+namespace InputHandler {
+  WNDPROC oWndProc;
 
-    static LRESULT APIENTRY WndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
+  static LRESULT APIENTRY WndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
     if (menu::isOpen) {
       ImGui_ImplWin32_WndProcHandler(hwnd, uMsg, wParam, lParam);
       return true;
