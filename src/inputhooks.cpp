@@ -1,23 +1,28 @@
-#include "stdafx.h"
-
-extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+#include "inputhooks.h"
 
 namespace InputHandler {
-  WNDPROC oWndProc;
+  static WNDPROC oWndProc;
+  static WndProcEx sHandler = nullptr;
 
   static LRESULT APIENTRY WndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
-    if (menu::isOpen) {
-      ImGui_ImplWin32_WndProcHandler(hwnd, uMsg, wParam, lParam);
-      return true;
-    }
-    return CallWindowProc(oWndProc, hwnd, uMsg, wParam, lParam);
+    UINT block = 0;
+
+    if (!sHandler)
+      return CallWindowProcW(oWndProc, hwnd, uMsg, wParam, lParam);
+
+    sHandler(hwnd, uMsg, wParam, lParam, &block);
+    if (block)
+      return TRUE;
+
+    return CallWindowProcW(oWndProc, hwnd, uMsg, wParam, lParam);
   }
 
-  void Init(HWND hWindow) {
-    oWndProc = (WNDPROC)SetWindowLongPtr(hWindow, GWLP_WNDPROC, (__int3264)(LONG_PTR)WndProc);
+  void init(HWND hWnd, WndProcEx handler) {
+    oWndProc = (WNDPROC)SetWindowLongPtrW(hWnd, GWLP_WNDPROC, (__int3264)(LONG_PTR)WndProc);
+    sHandler = handler;
   }
 
-  void Remove(HWND hWindow) {
-    SetWindowLongPtr(hWindow, GWLP_WNDPROC, (LONG_PTR)oWndProc);
+  void deinit(HWND hWnd) {
+    SetWindowLongPtrW(hWnd, GWLP_WNDPROC, (LONG_PTR)oWndProc);
   }
 }

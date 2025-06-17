@@ -1,4 +1,4 @@
-#include "stdafx.h"
+#include "globals.h"
 
 namespace UniHookGlobals {
   HMODULE mainModule;

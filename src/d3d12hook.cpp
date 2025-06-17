@@ -1,30 +1,42 @@
-#include "stdafx.h"
-#include "imgui.h"
-#include "imgui_impl_dx12.h"
-#include "imgui_impl_win32.h"
+#include <windows.h>
+#include <dxgi.h>
+#include <dxgi1_4.h>
+#include <d3d12.h>
 
-namespace D3D12Functions {
-  // Function pointers.
-  PresentFnD3D12 oPresentD3D12;
-  DrawInstancedFnD3D12 oDrawInstancedD3D12;
-  DrawIndexedInstancedFnD3D12 oDrawIndexedInstancedD3D12;
-  ReleaseFnD3D12 oReleaseD3D12;
-  void (*oExecuteCommandListsD3D12)(ID3D12CommandQueue*, UINT, ID3D12CommandList*);
-  HRESULT (*oSignalD3D12)(ID3D12CommandQueue*, ID3D12Fence*, UINT64);
+#include "d3d12hook.h"
+#include "globals.h"
+#include "kiero.h"
 
-  // Variables.
+namespace D3D12Hooks {
+  typedef long (STDMETHODCALLTYPE *PresentFnD3D12)(IDXGISwapChain *, UINT, UINT);
+  typedef void (STDMETHODCALLTYPE *DrawInstancedFnD3D12)(ID3D12GraphicsCommandList *, UINT, UINT, UINT, UINT);
+  typedef void (STDMETHODCALLTYPE *DrawIndexedInstancedFnD3D12)(ID3D12GraphicsCommandList *, UINT, UINT, UINT, INT);
+  typedef ULONG (STDMETHODCALLTYPE *ReleaseFnD3D12)(IDXGISwapChain3 *);
+
+  // Trampoline function pointers.
+  static PresentFnD3D12 oPresentD3D12;
+  static DrawInstancedFnD3D12 oDrawInstancedD3D12;
+  static DrawIndexedInstancedFnD3D12 oDrawIndexedInstancedD3D12;
+  static ReleaseFnD3D12 oReleaseD3D12;
+  static void (*oExecuteCommandListsD3D12)(ID3D12CommandQueue*, UINT, ID3D12CommandList*);
+  static HRESULT (*oSignalD3D12)(ID3D12CommandQueue*, ID3D12Fence*, UINT64);
+
+  // Callbacks.
+  static InitCB cbInit = nullptr;
+  static PresentCB cbPresent = nullptr;
+  static DeinitCB cbDeinit = nullptr;
+
   IDXGISwapChain3 *gSavedSwapChain = nullptr;
   ID3D12Device *gDevice = nullptr;
   ID3D12DescriptorHeap *gHeapRTV = nullptr;
   ID3D12DescriptorHeap *gHeapSRV = nullptr;
   ID3D12GraphicsCommandList *gCommandList = nullptr;
   ID3D12Fence *gFence = nullptr;
-  UINT64 gFenceValue = 0;
-  ID3D12CommandQueue* gCommandQueue = nullptr;
-  UINT gBufferCount = -1;
-  FrameContext* gFrameContext;
-  bool shutdown = false
-    , gInit = false;
+  UINT64 gFenceValue;
+  ID3D12CommandQueue *gCommandQueue = nullptr;
+  UINT gBufferCount;
+  FrameContext *gFrameContext = nullptr;
+  bool gInit = false;
 
   // Functions.
   bool createAllFrom(IDXGISwapChain3* pSwapChain) {
@@ -36,31 +48,24 @@ namespace D3D12Functions {
     if (!UniHookGlobals::mainWindow)
       UniHookGlobals::mainWindow = GetForegroundWindow();
 
-    ImGui::CreateContext();
-
-    ImGuiIO& io = ImGui::GetIO(); (void)io;
-    ImGui::StyleColorsDark();
-    io.Fonts->AddFontDefault();
-    io.IniFilename = NULL;
-
     DXGI_SWAP_CHAIN_DESC sdesc;
     pSwapChain->GetDesc(&sdesc);
-    sdesc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
-    sdesc.OutputWindow = UniHookGlobals::mainWindow;
-    sdesc.Windowed = ((GetWindowLongPtr(UniHookGlobals::mainWindow, GWL_STYLE) & WS_POPUP) != 0) ? false : true;
+    //sdesc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
+    //sdesc.OutputWindow = UniHookGlobals::mainWindow;
+    //sdesc.Windowed = ((GetWindowLongPtr(UniHookGlobals::mainWindow, GWL_STYLE) & WS_POPUP) != 0) ? false : true;
 
     gBufferCount = sdesc.BufferCount;
     gFrameContext = new FrameContext[gBufferCount];
 
-    D3D12_DESCRIPTOR_HEAP_DESC descriptorImGuiRender = {};
-    descriptorImGuiRender.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-    descriptorImGuiRender.NumDescriptors = gBufferCount;
-    descriptorImGuiRender.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+    D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {};
+    heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+    heapDesc.NumDescriptors = gBufferCount;
+    heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 
-    if (gDevice->CreateDescriptorHeap(&descriptorImGuiRender, IID_PPV_ARGS(&gHeapSRV)) != S_OK)
+    if (gDevice->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&gHeapSRV)) != S_OK)
       return false;
 
-    ID3D12CommandAllocator* allocator;
+    ID3D12CommandAllocator *allocator;
     if (gDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&allocator)) != S_OK)
       return false;
 
@@ -73,13 +78,12 @@ namespace D3D12Functions {
     )
       return false;
 
-    D3D12_DESCRIPTOR_HEAP_DESC descriptorBackBuffers;
-    descriptorBackBuffers.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
-    descriptorBackBuffers.NumDescriptors = gBufferCount;
-    descriptorBackBuffers.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-    descriptorBackBuffers.NodeMask = 1;
+    heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
+    heapDesc.NumDescriptors = gBufferCount;
+    heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+    heapDesc.NodeMask = 1;
 
-    if (gDevice->CreateDescriptorHeap(&descriptorBackBuffers, IID_PPV_ARGS(&gHeapRTV)) != S_OK)
+    if (gDevice->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&gHeapRTV)) != S_OK)
       return false;
 
     const auto rtvDescriptorSize = gDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
@@ -95,51 +99,41 @@ namespace D3D12Functions {
       rtvHandle.ptr += rtvDescriptorSize;
     }
 
-    ImGui_ImplWin32_Init(UniHookGlobals::mainWindow);
-    ImGui_ImplDX12_Init(
-      gDevice,
-      gBufferCount,
-      DXGI_FORMAT_R8G8B8A8_UNORM,
-      gHeapSRV,
-      gHeapSRV->GetCPUDescriptorHandleForHeapStart(),
-      gHeapSRV->GetGPUDescriptorHandleForHeapStart()
-    );
-    ImGui_ImplDX12_CreateDeviceObjects();
-
-    InputHandler::Init(UniHookGlobals::mainWindow);
+    if (cbInit)
+      cbInit(&sdesc);
 
     return true;
   }
 
   void clearAll() {
-    InputHandler::Remove(UniHookGlobals::mainWindow);
-    ImGui_ImplDX12_Shutdown();
-    ImGui_ImplWin32_Shutdown();
-    ImGui::DestroyContext();
+    if (cbDeinit)
+      cbDeinit();
 
     for (UINT i = 0; i < gBufferCount; i++) {
       SafeRelease(&gFrameContext[i].mainRenderTargetResource);
       SafeRelease(&gFrameContext[i].commandAllocator);
     }
+
     SafeRelease(&gCommandList);
     SafeRelease(&gHeapRTV);
     SafeRelease(&gHeapSRV);
     SafeRelease(&gDevice);
+
     gCommandQueue = nullptr;
     gFenceValue = 0;
     gFence = nullptr;
   }
-
 
   HRESULT STDMETHODCALLTYPE hookPresentD3D12(
     IDXGISwapChain3* pSwapChain,
     UINT SyncInterval,
     UINT Flags
   ) {
-    if (GetAsyncKeyState(UniHookGlobals::openMenuKey) & 0x1)
-      menu::isOpen ? menu::isOpen = false : menu::isOpen = true;
+    /*if (GetAsyncKeyState(UniHookGlobals::openMenuKey) & 0x1)
+      menu::isOpen ? menu::isOpen = false : menu::isOpen = true;*/
 
     if (!gInit) {
+      // Initialize from Present.
       gSavedSwapChain = pSwapChain;
       gInit = createAllFrom(pSwapChain);
     }
@@ -148,38 +142,8 @@ namespace D3D12Functions {
       if (gCommandQueue == nullptr)
         return oPresentD3D12(pSwapChain, SyncInterval, Flags);
 
-      ImGui_ImplDX12_NewFrame();
-      ImGui_ImplWin32_NewFrame();
-      ImGui::NewFrame();
-
-      menu::Init();
-
-      FrameContext& currentFrameContext = gFrameContext[pSwapChain->GetCurrentBackBufferIndex()];
-      currentFrameContext.commandAllocator->Reset();
-
-      D3D12_RESOURCE_BARRIER barrier;
-      barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-      barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-      barrier.Transition.pResource = currentFrameContext.mainRenderTargetResource;
-      barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-      barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
-      barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
-
-      gCommandList->Reset(currentFrameContext.commandAllocator, nullptr);
-      gCommandList->ResourceBarrier(1, &barrier);
-      gCommandList->OMSetRenderTargets(1, &currentFrameContext.mainRenderTargetDescriptor, FALSE, nullptr);
-      gCommandList->SetDescriptorHeaps(1, &gHeapSRV);
-
-      ImGui::Render();
-      ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), gCommandList);
-
-      barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
-      barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
-
-      gCommandList->ResourceBarrier(1, &barrier);
-      gCommandList->Close();
-
-      gCommandQueue->ExecuteCommandLists(1, reinterpret_cast<ID3D12CommandList* const*>(&gCommandList));
+      if (cbPresent)
+        cbPresent();
     }
 
     return oPresentD3D12(pSwapChain, SyncInterval, Flags);
@@ -247,38 +211,28 @@ namespace D3D12Functions {
     return oReleaseD3D12(pSwapChain);
   }
 
-  void release() {
-    shutdown = true;
-    gDevice->Release();
-    gHeapRTV->Release();
-    gHeapSRV->Release();
-    gCommandList->Release();
-    gFence->Release();
-    gCommandQueue->Release();
+  bool init(InitCB init, PresentCB present, DeinitCB deinit) {
+    if (kiero::init(kiero::RenderType::D3D12) != kiero::Status::Success)
+      return false;
+    
+    cbInit = init;
+    cbPresent = present;
+    cbDeinit = deinit;
+
+    kiero::bind(54, (void**)&oExecuteCommandListsD3D12, (void *)hookExecuteCommandListsD3D12);
+    kiero::bind(58, (void**)&oSignalD3D12, (void *)hookSignalD3D12);
+    kiero::bind(84, (void**)&oDrawInstancedD3D12, (void *)hookkDrawInstancedD3D12);
+    kiero::bind(85, (void**)&oDrawIndexedInstancedD3D12, (void *)hookDrawIndexedInstancedD3D12);
+    kiero::bind(134, (void **)&oReleaseD3D12, (void *)hookReleaseD3D12);
+    kiero::bind(140, (void**)&oPresentD3D12, (void *)hookPresentD3D12);
+
+    return true;
   }
-}
 
-namespace D3D12Hooks {
-  void Init() {
-    if (kiero::init(kiero::RenderType::D3D12) == kiero::Status::Success) {
-      kiero::bind(54, (void**)&D3D12Functions::oExecuteCommandListsD3D12, (void *)D3D12Functions::hookExecuteCommandListsD3D12);
-      kiero::bind(58, (void**)&D3D12Functions::oSignalD3D12, (void *)D3D12Functions::hookSignalD3D12);
-      kiero::bind(140, (void**)&D3D12Functions::oPresentD3D12, (void *)D3D12Functions::hookPresentD3D12);
-      kiero::bind(84, (void**)&D3D12Functions::oDrawInstancedD3D12, (void *)D3D12Functions::hookkDrawInstancedD3D12);
-      kiero::bind(85, (void**)&D3D12Functions::oDrawIndexedInstancedD3D12, (void *)D3D12Functions::hookDrawIndexedInstancedD3D12);
-      kiero::bind(134, (void **)&D3D12Functions::oReleaseD3D12, (void *)D3D12Functions::hookReleaseD3D12);
-
-      do {
-        Sleep(100);
-      } while (!(GetAsyncKeyState(UniHookGlobals::uninjectKey) & 0x1));
-
-      D3D12Functions::release();
-      kiero::shutdown();
-      InputHandler::Remove(UniHookGlobals::mainWindow);
-
-      Beep(220, 100);
-
-      FreeLibraryAndExitThread(UniHookGlobals::mainModule, 0);
-    }
+  bool deinit() {
+    clearAll();
+    kiero::shutdown();
+    //InputHandler::Remove(UniHookGlobals::mainWindow);
+    return true;
   }
 }

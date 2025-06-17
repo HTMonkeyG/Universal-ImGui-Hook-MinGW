@@ -1,5 +1,5 @@
-#ifndef __MACROS_H__
-#define __MACROS_H__
+#ifndef __UGLH_ALIASES_H__
+#define __UGLH_ALIASES_H__
 
 #define i8 char
 #define i08 char
