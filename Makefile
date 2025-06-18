@@ -13,7 +13,7 @@ CFLAGS += -I./libraries/imgui-1.91.9b -I./libraries/imgui-1.91.9b/backends
 CFLAGS += -I./libraries/MinHook/include
 CFLAGS += -I./libraries/kiero
 
-.PHONY: clean test
+.PHONY: clean test clean_test clean_all
 
 libuglhook.a: $(CPP_OBJ)
 	$(AR) rcs $@ $^ 
@@ -30,3 +30,5 @@ clean:
 
 clean_test:
 	make -C .\test clean
+
+clean_all: clean clean_test

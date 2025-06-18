@@ -184,9 +184,9 @@ namespace D3D12Hooks {
   }
 
   void STDMETHODCALLTYPE hookExecuteCommandListsD3D12(
-    ID3D12CommandQueue* queue,
+    ID3D12CommandQueue *queue,
     UINT NumCommandLists,
-    ID3D12CommandList* ppCommandLists
+    ID3D12CommandList *ppCommandLists
   ) {
     if (!gCommandQueue)
       gCommandQueue = queue;

@@ -9,8 +9,8 @@ CFLAGS += -I../libraries/MinHook/include
 CFLAGS += -I../libraries/kiero
 CFLAGS += -I../src
 
-LFLAGS = -lgdi32 -ld3d12 -ldwmapi -ld3dcompiler -lole32
-LFLAGS += -L../libraries/imgui-1.91.9b -limgui -limgui_impl_win32 -limgui_impl_dx12 -limgui_demo
+LFLAGS = -lgdi32 -ld3d12 -ld3d11 -ldwmapi -ld3dcompiler -lole32
+LFLAGS += -L../libraries/imgui-1.91.9b -limgui -limgui_impl_win32 -limgui_impl_dx12 -limgui_impl_dx11 -limgui_demo
 LFLAGS += -L../libraries/kiero -lkiero
 LFLAGS += -L../libraries/MinHook -lMinHook
 LFLAGS += -L.. -luglhook
