@@ -4,12 +4,13 @@
 #include <windows.h>
 
 namespace InputHandler {
-  typedef void (CALLBACK *WndProcEx)(HWND, UINT, WPARAM, LPARAM, UINT *);
+  typedef void (CALLBACK *WndProcEx)(HWND, UINT, WPARAM, LPARAM, UINT *, void *);
 
   /**
    * Detour window process.
    * 
-   * This function should be called in InitCB of the GL hook.
+   * This function should be called EXACTLY ONCE after the target GL is
+   * initialized (gInit of the GL hook is set).
    * 
    * The function will call `handler` when a message is dispatched to the
    * target window, and block messages from reaching the original window
@@ -18,7 +19,7 @@ namespace InputHandler {
    * @param hWnd Target window. Get from GL hook.
    * @param handler Window process detour function.
    */
-  extern void init(HWND hWnd, WndProcEx handler);
+  extern void init(HWND hWnd, WndProcEx handler, void *lpUser);
 
   /**
    * Restore original window process.

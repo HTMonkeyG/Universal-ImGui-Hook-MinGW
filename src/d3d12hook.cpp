@@ -26,6 +26,9 @@ namespace D3D12Hooks {
   static PresentCB cbPresent = nullptr;
   static DeinitCB cbDeinit = nullptr;
 
+  // User specified data.
+  static void *pUser = nullptr;
+
   IDXGISwapChain3 *gSavedSwapChain = nullptr;
   ID3D12Device *gDevice = nullptr;
   ID3D12DescriptorHeap *gHeapRTV = nullptr;
@@ -100,14 +103,14 @@ namespace D3D12Hooks {
     }
 
     if (cbInit)
-      cbInit(&sdesc);
+      cbInit(&sdesc, pUser);
 
     return true;
   }
 
   void clearAll() {
     if (cbDeinit)
-      cbDeinit();
+      cbDeinit(pUser);
 
     for (UINT i = 0; i < gBufferCount; i++) {
       SafeRelease(&gFrameContext[i].mainRenderTargetResource);
@@ -143,7 +146,7 @@ namespace D3D12Hooks {
         return oPresentD3D12(pSwapChain, SyncInterval, Flags);
 
       if (cbPresent)
-        cbPresent();
+        cbPresent(pUser);
     }
 
     return oPresentD3D12(pSwapChain, SyncInterval, Flags);
@@ -211,13 +214,14 @@ namespace D3D12Hooks {
     return oReleaseD3D12(pSwapChain);
   }
 
-  bool init(InitCB init, PresentCB present, DeinitCB deinit) {
+  bool init(InitCB init, PresentCB present, DeinitCB deinit, void *lpUser) {
     if (kiero::init(kiero::RenderType::D3D12) != kiero::Status::Success)
       return false;
     
     cbInit = init;
     cbPresent = present;
     cbDeinit = deinit;
+    pUser = lpUser;
 
     kiero::bind(54, (void**)&oExecuteCommandListsD3D12, (void *)hookExecuteCommandListsD3D12);
     kiero::bind(58, (void**)&oSignalD3D12, (void *)hookSignalD3D12);

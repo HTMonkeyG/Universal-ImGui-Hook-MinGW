@@ -1,10 +1,9 @@
 MAKEFLAGS += -s -j4
 
-DIST_DIR = ./dist
 SRC_DIR = ./src
 
 CPP_SRC = $(wildcard $(SRC_DIR)/*.cpp)
-CPP_OBJ = $(patsubst %.cpp, $(DIST_DIR)/%.o, $(notdir $(CPP_SRC)))
+CPP_OBJ = $(patsubst %.cpp, $(SRC_DIR)/%.o, $(notdir $(CPP_SRC)))
 
 AR = ar
 CXX = g++
@@ -19,7 +18,7 @@ CFLAGS += -I./libraries/kiero
 libuglhook.a: $(CPP_OBJ)
 	$(AR) rcs $@ $^ 
 
-$(DIST_DIR)/%.o: $(SRC_DIR)/%.cpp
+$(SRC_DIR)/%.o: $(SRC_DIR)/%.cpp
 	$(CXX) $(CFLAGS) -c $< -o $@
 
 test:

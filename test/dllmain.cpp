@@ -4,7 +4,7 @@ using namespace D3D12Hooks;
 
 unsigned long __stdcall onAttach() {
   D3D12Hooks::init(
-    [](const DXGI_SWAP_CHAIN_DESC *desc) -> void {
+    [](const DXGI_SWAP_CHAIN_DESC *desc, void *lpUser) -> void {
       ImGui::CreateContext();
       ImGui::StyleColorsDark();
 
@@ -25,10 +25,11 @@ unsigned long __stdcall onAttach() {
 
       InputHandler::init(
         UniHookGlobals::mainWindow,
-        nullptr//[](HWND hW, UINT, WPARAM, LPARAM, UINT *)
+        nullptr,
+        nullptr
       );
     },
-    []() -> void {
+    [](void *lpUser) -> void {
       ImGui_ImplDX12_NewFrame();
       ImGui_ImplWin32_NewFrame();
       ImGui::NewFrame();
@@ -71,12 +72,13 @@ unsigned long __stdcall onAttach() {
         1,
         reinterpret_cast<ID3D12CommandList* const*>(&gCommandList));
     },
-    []() -> void {
+    [](void *lpUser) -> void {
       InputHandler::deinit(UniHookGlobals::mainWindow);
       ImGui_ImplDX12_Shutdown();
       ImGui_ImplWin32_Shutdown();
       ImGui::DestroyContext();
-    }
+    },
+    nullptr
   );
   return 0;
 }

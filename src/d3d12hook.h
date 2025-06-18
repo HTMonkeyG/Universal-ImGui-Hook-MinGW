@@ -6,12 +6,10 @@
 #include <dxgi1_4.h>
 #include <d3d12.h>
 
-#include "aliases.h"
-
 namespace D3D12Hooks {
-  typedef void (__fastcall *InitCB)(const DXGI_SWAP_CHAIN_DESC *);
-  typedef void (__fastcall *PresentCB)();
-  typedef void (__fastcall *DeinitCB)();
+  typedef void (__fastcall *InitCB)(const DXGI_SWAP_CHAIN_DESC *, void *);
+  typedef void (__fastcall *PresentCB)(void *);
+  typedef void (__fastcall *DeinitCB)(void *);
 
   struct FrameContext {
     ID3D12CommandAllocator* commandAllocator = nullptr;
@@ -30,40 +28,6 @@ namespace D3D12Hooks {
   extern UINT gBufferCount;
   extern FrameContext *gFrameContext;
   extern bool gInit;
-  
-  /*extern PresentFnD3D12 oPresentD3D12;
-  extern DrawInstancedFnD3D12 oDrawInstancedD3D12;
-  extern DrawIndexedInstancedFnD3D12 oDrawIndexedInstancedD3D12;
-  extern ReleaseFnD3D12 oReleaseD3D12;
-  extern void (*oExecuteCommandListsD3D12)(ID3D12CommandQueue *, UINT, ID3D12CommandList *);
-  extern HRESULT (*oSignalD3D12)(ID3D12CommandQueue *, ID3D12Fence *, UINT64);
-
-  extern HRESULT STDMETHODCALLTYPE hookPresentD3D12(
-    IDXGISwapChain3 *pSwapChain,
-    UINT SyncInterval,
-    UINT Flags);
-  extern void STDMETHODCALLTYPE hookkDrawInstancedD3D12(
-    ID3D12GraphicsCommandList *dCommandList,
-    UINT VertexCountPerInstance,
-    UINT InstanceCount,
-    UINT StartVertexLocation,
-    UINT StartInstanceLocation);
-  extern void STDMETHODCALLTYPE hookDrawIndexedInstancedD3D12(
-    ID3D12GraphicsCommandList *dCommandList,
-    UINT IndexCount,
-    UINT InstanceCount,
-    UINT StartIndex,
-    INT BaseVertex);
-  extern void STDMETHODCALLTYPE hookExecuteCommandListsD3D12(
-    ID3D12CommandQueue *queue,
-    UINT NumCommandLists,
-    ID3D12CommandList *ppCommandLists);
-  extern HRESULT STDMETHODCALLTYPE hookSignalD3D12(
-    ID3D12CommandQueue *queue,
-    ID3D12Fence *fence,
-    UINT64 value);
-  extern ULONG hookReleaseD3D12(IDXGISwapChain3 *pSwapChain);
-  extern void STDMETHODCALLTYPE release();*/
 
   /**
    * Install hooks with given callback functions.
@@ -79,14 +43,16 @@ namespace D3D12Hooks {
    * 
    * The resize event is automatically processed.
    * 
-   * NOTE: The function `init` may be called multiple times due to possible
-   * release operations on the swap chain of the injected process. DO NOT 
-   * include operations within it that must be executed only once.
+   * NOTE: The InitCB may be called multiple times due to possible release 
+   * operations on the swap chain of the injected process. DO NOT include
+   * operations must be executed only once.
    * 
    * @param init Callback of the initialize of device and swap chain.
    * @param present Function to be call when the Present function is called.
+   * @param deinit Function to be call when the Release function is called.
+   * @param lpUser User data pointer.
    */
-  bool init(InitCB init, PresentCB present, DeinitCB deinit);
+  bool init(InitCB init, PresentCB present, DeinitCB deinit, void *lpUser);
 
   /**
    * Remove all hooks and release dx12 objects created.
