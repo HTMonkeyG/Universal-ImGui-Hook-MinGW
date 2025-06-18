@@ -3,12 +3,14 @@
 #include <dxgi1_4.h>
 #include <d3d12.h>
 
-#include "d3d12hook.h"
-#include "globals.h"
 #include "kiero.h"
 
+#include "d3d12hook.h"
+#include "globals.h"
+#include "utils.h"
+
 namespace D3D12Hooks {
-  typedef long (STDMETHODCALLTYPE *PresentFnD3D12)(IDXGISwapChain *, UINT, UINT);
+  typedef long (STDMETHODCALLTYPE *PresentFnD3D12)(IDXGISwapChain3 *, UINT, UINT);
   typedef void (STDMETHODCALLTYPE *DrawInstancedFnD3D12)(ID3D12GraphicsCommandList *, UINT, UINT, UINT, UINT);
   typedef void (STDMETHODCALLTYPE *DrawIndexedInstancedFnD3D12)(ID3D12GraphicsCommandList *, UINT, UINT, UINT, INT);
   typedef ULONG (STDMETHODCALLTYPE *ReleaseFnD3D12)(IDXGISwapChain3 *);
@@ -18,8 +20,8 @@ namespace D3D12Hooks {
   static DrawInstancedFnD3D12 oDrawInstancedD3D12;
   static DrawIndexedInstancedFnD3D12 oDrawIndexedInstancedD3D12;
   static ReleaseFnD3D12 oReleaseD3D12;
-  static void (*oExecuteCommandListsD3D12)(ID3D12CommandQueue*, UINT, ID3D12CommandList*);
-  static HRESULT (*oSignalD3D12)(ID3D12CommandQueue*, ID3D12Fence*, UINT64);
+  static void (*oExecuteCommandListsD3D12)(ID3D12CommandQueue *, UINT, ID3D12CommandList *);
+  static HRESULT (*oSignalD3D12)(ID3D12CommandQueue *, ID3D12Fence *, UINT64);
 
   // Callbacks.
   static InitCB cbInit = nullptr;
@@ -42,8 +44,8 @@ namespace D3D12Hooks {
   bool gInit = false;
 
   // Functions.
-  bool createAllFrom(IDXGISwapChain3* pSwapChain) {
-    if (!SUCCEEDED(pSwapChain->GetDevice(__uuidof(ID3D12Device), (void**)&gDevice)))
+  bool createAllFrom(IDXGISwapChain3 *pSwapChain) {
+    if (!SUCCEEDED(pSwapChain->GetDevice(__uuidof(ID3D12Device), (void **)&gDevice)))
       return false;
 
     if (!UniHookGlobals::mainWindow)
@@ -53,10 +55,7 @@ namespace D3D12Hooks {
 
     DXGI_SWAP_CHAIN_DESC sdesc;
     pSwapChain->GetDesc(&sdesc);
-    //sdesc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
-    //sdesc.OutputWindow = UniHookGlobals::mainWindow;
-    //sdesc.Windowed = ((GetWindowLongPtr(UniHookGlobals::mainWindow, GWL_STYLE) & WS_POPUP) != 0) ? false : true;
-
+    
     gBufferCount = sdesc.BufferCount;
     gFrameContext = new FrameContext[gBufferCount];
 
@@ -76,7 +75,12 @@ namespace D3D12Hooks {
       gFrameContext[i].commandAllocator = allocator;
 
     if (
-      gDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, allocator, NULL, IID_PPV_ARGS(&gCommandList)) != S_OK
+      gDevice->CreateCommandList(
+        0,
+        D3D12_COMMAND_LIST_TYPE_DIRECT,
+        allocator,
+        NULL,
+        IID_PPV_ARGS(&gCommandList)) != S_OK
       || gCommandList->Close() != S_OK
     )
       return false;
@@ -128,13 +132,10 @@ namespace D3D12Hooks {
   }
 
   HRESULT STDMETHODCALLTYPE hookPresentD3D12(
-    IDXGISwapChain3* pSwapChain,
+    IDXGISwapChain3 *pSwapChain,
     UINT SyncInterval,
     UINT Flags
   ) {
-    /*if (GetAsyncKeyState(UniHookGlobals::openMenuKey) & 0x1)
-      menu::isOpen ? menu::isOpen = false : menu::isOpen = true;*/
-
     if (!gInit) {
       // Initialize from Present.
       gSavedSwapChain = pSwapChain;
@@ -223,12 +224,12 @@ namespace D3D12Hooks {
     cbDeinit = deinit;
     pUser = lpUser;
 
-    kiero::bind(54, (void**)&oExecuteCommandListsD3D12, (void *)hookExecuteCommandListsD3D12);
-    kiero::bind(58, (void**)&oSignalD3D12, (void *)hookSignalD3D12);
-    kiero::bind(84, (void**)&oDrawInstancedD3D12, (void *)hookkDrawInstancedD3D12);
-    kiero::bind(85, (void**)&oDrawIndexedInstancedD3D12, (void *)hookDrawIndexedInstancedD3D12);
+    kiero::bind(54, (void **)&oExecuteCommandListsD3D12, (void *)hookExecuteCommandListsD3D12);
+    kiero::bind(58, (void **)&oSignalD3D12, (void *)hookSignalD3D12);
+    kiero::bind(84, (void **)&oDrawInstancedD3D12, (void *)hookkDrawInstancedD3D12);
+    kiero::bind(85, (void **)&oDrawIndexedInstancedD3D12, (void *)hookDrawIndexedInstancedD3D12);
     kiero::bind(134, (void **)&oReleaseD3D12, (void *)hookReleaseD3D12);
-    kiero::bind(140, (void**)&oPresentD3D12, (void *)hookPresentD3D12);
+    kiero::bind(140, (void **)&oPresentD3D12, (void *)hookPresentD3D12);
 
     return true;
   }
@@ -236,7 +237,6 @@ namespace D3D12Hooks {
   bool deinit() {
     clearAll();
     kiero::shutdown();
-    //InputHandler::Remove(UniHookGlobals::mainWindow);
     return true;
   }
 }

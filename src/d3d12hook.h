@@ -52,19 +52,12 @@ namespace D3D12Hooks {
    * @param deinit Function to be call when the Release function is called.
    * @param lpUser User data pointer.
    */
-  bool init(InitCB init, PresentCB present, DeinitCB deinit, void *lpUser);
+  extern bool init(InitCB init, PresentCB present, DeinitCB deinit, void *lpUser);
 
   /**
    * Remove all hooks and release dx12 objects created.
    */
-  bool deinit();
-}
-
-template<typename T> void SafeRelease(T **obj) {
-  if (*obj) {
-    (*obj)->Release();
-    *obj = nullptr;
-  }
+  extern bool deinit();
 }
 
 #endif

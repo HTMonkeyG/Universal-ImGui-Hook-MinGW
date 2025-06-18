@@ -25,8 +25,8 @@ test:
 	make -C .\test
 
 clean:
-	del .\dist\*.o
-	del libuglhook.a
+	-del .\src\*.o
+	-del libuglhook.a
 
 clean_test:
 	make -C .\test clean

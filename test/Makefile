@@ -22,5 +22,5 @@ LFLAGS += -L.. -luglhook
 	$(CXX) $(CFLAGS) -c $< -o $@
 
 clean:
-	del *.o
-	del .\uglhook-test.dll
+	-del *.o
+	-del .\uglhook-test.dll
